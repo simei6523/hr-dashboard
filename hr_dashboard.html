@@ -1,0 +1,798 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>全球各Site人員人數 Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&family=DM+Mono:wght@400;500&display=swap');
+
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --surface2: #22263a;
+    --border: rgba(255,255,255,0.07);
+    --text: #e8eaf0;
+    --text-muted: #7a7f99;
+    --accent: #4f9cf9;
+    --accent2: #a78bfa;
+    --green: #34d399;
+    --red: #f87171;
+    --amber: #fbbf24;
+    --teal: #2dd4bf;
+    --pink: #f472b6;
+    --orange: #fb923c;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Noto Sans TC', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 2rem;
+  }
+
+  /* header */
+  .header {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    margin-bottom: 2.5rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+  .header-left h1 {
+    font-size: 1.75rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: var(--text);
+  }
+  .header-left p {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin-top: 4px;
+  }
+  .tag {
+    display: inline-block;
+    font-size: 0.7rem;
+    font-family: 'DM Mono', monospace;
+    background: rgba(79,156,249,0.12);
+    color: var(--accent);
+    border: 1px solid rgba(79,156,249,0.2);
+    border-radius: 4px;
+    padding: 2px 8px;
+    margin-right: 6px;
+    margin-top: 6px;
+  }
+
+  /* filter bar */
+  .filter-bar {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    margin-bottom: 1.75rem;
+  }
+  .filter-bar label {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    white-space: nowrap;
+  }
+  .filter-bar select, .filter-bar input[type=range] {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 6px;
+    padding: 5px 10px;
+    font-size: 0.82rem;
+    font-family: inherit;
+    outline: none;
+    cursor: pointer;
+  }
+  .filter-bar select:focus { border-color: var(--accent); }
+  .btn-group {
+    display: flex;
+    gap: 4px;
+  }
+  .btn {
+    padding: 5px 14px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--surface2);
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all .15s;
+    font-family: inherit;
+  }
+  .btn.active, .btn:hover {
+    background: var(--accent);
+    color: #fff;
+    border-color: var(--accent);
+  }
+
+  /* KPI cards */
+  .kpi-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.75rem;
+  }
+  .kpi {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.25rem 1.25rem 1rem;
+    position: relative;
+    overflow: hidden;
+  }
+  .kpi::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    border-radius: 12px 12px 0 0;
+  }
+  .kpi.blue::before { background: var(--accent); }
+  .kpi.purple::before { background: var(--accent2); }
+  .kpi.green::before { background: var(--green); }
+  .kpi.amber::before { background: var(--amber); }
+  .kpi.teal::before { background: var(--teal); }
+  .kpi-label {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 0.5rem;
+  }
+  .kpi-value {
+    font-size: 2rem;
+    font-weight: 700;
+    font-family: 'DM Mono', monospace;
+    line-height: 1;
+  }
+  .kpi.blue .kpi-value { color: var(--accent); }
+  .kpi.purple .kpi-value { color: var(--accent2); }
+  .kpi.green .kpi-value { color: var(--green); }
+  .kpi.amber .kpi-value { color: var(--amber); }
+  .kpi.teal .kpi-value { color: var(--teal); }
+  .kpi-sub {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-top: 4px;
+  }
+  .kpi-delta {
+    font-size: 0.75rem;
+    font-family: 'DM Mono', monospace;
+    margin-top: 4px;
+  }
+  .kpi-delta.up { color: var(--green); }
+  .kpi-delta.down { color: var(--red); }
+
+  /* charts grid */
+  .charts-grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 1rem;
+    margin-bottom: 1rem;
+  }
+  .charts-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-bottom: 1rem;
+  }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.25rem;
+  }
+  .card-title {
+    font-size: 0.78rem;
+    font-weight: 500;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 1rem;
+  }
+  .chart-wrap {
+    position: relative;
+  }
+
+  /* site table */
+  .site-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.82rem;
+  }
+  .site-table th {
+    text-align: left;
+    padding: 6px 8px;
+    font-size: 0.68rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+    border-bottom: 1px solid var(--border);
+  }
+  .site-table td {
+    padding: 8px 8px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: middle;
+  }
+  .site-table tr:last-child td { border-bottom: none; }
+  .site-table tr:hover td { background: rgba(255,255,255,0.02); }
+  .site-name { font-weight: 500; color: var(--text); }
+  .site-num {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.9rem;
+    text-align: right;
+  }
+  .bar-cell { width: 80px; }
+  .mini-bar {
+    height: 4px;
+    border-radius: 2px;
+    background: var(--accent);
+    opacity: 0.6;
+  }
+
+  /* dot legend */
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1rem;
+    margin-top: 0.75rem;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.73rem;
+    color: var(--text-muted);
+    cursor: pointer;
+  }
+  .legend-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  /* date badge */
+  .date-badge {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.72rem;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    padding: 3px 10px;
+    border-radius: 20px;
+    color: var(--text-muted);
+  }
+
+  /* tooltip custom */
+  .latest-label {
+    font-size: 0.7rem;
+    color: var(--green);
+    font-family: 'DM Mono', monospace;
+  }
+
+  /* region comparison bar */
+  .region-bar-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+  .region-bar-label {
+    font-size: 0.78rem;
+    min-width: 100px;
+    color: var(--text);
+    flex-shrink: 0;
+  }
+  .region-bar-track {
+    flex: 1;
+    height: 8px;
+    background: var(--surface2);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .region-bar-fill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width .5s ease;
+  }
+  .region-bar-num {
+    font-size: 0.8rem;
+    font-family: 'DM Mono', monospace;
+    color: var(--text-muted);
+    min-width: 36px;
+    text-align: right;
+  }
+
+  footer {
+    margin-top: 2rem;
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    border-top: 1px solid var(--border);
+    padding-top: 1rem;
+  }
+
+  @media (max-width: 768px) {
+    body { padding: 1rem; }
+    .charts-grid { grid-template-columns: 1fr; }
+    .charts-row { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-left">
+    <h1>🌏 全球各 Site 人員人數</h1>
+    <p>Global Headcount Dashboard</p>
+    <div style="margin-top:6px">
+      <span class="tag">台灣</span>
+      <span class="tag">日本</span>
+      <span class="tag">歐洲</span>
+      <span class="tag">美國</span>
+      <span class="tag">中國</span>
+      <span class="tag">越南</span>
+      <span class="tag">新加坡</span>
+    </div>
+  </div>
+  <div>
+    <div class="date-badge" id="latest-date-badge">最新資料：載入中</div>
+  </div>
+</div>
+
+<!-- Filter -->
+<div class="filter-bar">
+  <label>顯示期間：</label>
+  <div class="btn-group">
+    <button class="btn" onclick="setRange(6)">6個月</button>
+    <button class="btn active" onclick="setRange(12)">12個月</button>
+    <button class="btn" onclick="setRange(0)">全部</button>
+  </div>
+  <label style="margin-left:1rem">圖表類型：</label>
+  <div class="btn-group">
+    <button class="btn active" id="btn-line" onclick="setChartType('line')">折線</button>
+    <button class="btn" id="btn-bar" onclick="setChartType('bar')">長條</button>
+  </div>
+</div>
+
+<!-- KPI Row -->
+<div class="kpi-row">
+  <div class="kpi blue">
+    <div class="kpi-label">全球總人數（最新）</div>
+    <div class="kpi-value" id="kpi-total">—</div>
+    <div class="kpi-delta" id="kpi-total-delta">—</div>
+  </div>
+  <div class="kpi teal">
+    <div class="kpi-label">台灣（含工廠）</div>
+    <div class="kpi-value" id="kpi-tw">—</div>
+    <div class="kpi-delta" id="kpi-tw-delta">—</div>
+  </div>
+  <div class="kpi purple">
+    <div class="kpi-label">中國（含工廠）</div>
+    <div class="kpi-value" id="kpi-cn">—</div>
+    <div class="kpi-delta" id="kpi-cn-delta">—</div>
+  </div>
+  <div class="kpi amber">
+    <div class="kpi-label">越南（含工廠）</div>
+    <div class="kpi-value" id="kpi-vn">—</div>
+    <div class="kpi-delta" id="kpi-vn-delta">—</div>
+  </div>
+  <div class="kpi green">
+    <div class="kpi-label">資料期間</div>
+    <div class="kpi-value" style="font-size:1.1rem;padding-top:6px" id="kpi-span">—</div>
+    <div class="kpi-sub" id="kpi-points">—</div>
+  </div>
+</div>
+
+<!-- Main charts -->
+<div class="charts-grid">
+  <div class="card">
+    <div class="card-title">全球總人數趨勢</div>
+    <div class="chart-wrap" style="height:260px">
+      <canvas id="totalChart"></canvas>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">各地區佔比（最新）</div>
+    <div class="chart-wrap" style="height:260px">
+      <canvas id="pieChart"></canvas>
+    </div>
+  </div>
+</div>
+
+<div class="charts-row">
+  <div class="card">
+    <div class="card-title">各地區人數趨勢（多線）</div>
+    <div class="chart-wrap" style="height:220px">
+      <canvas id="multiChart"></canvas>
+    </div>
+    <div class="legend" id="multiLegend"></div>
+  </div>
+  <div class="card">
+    <div class="card-title">各地區人數（最新快照）</div>
+    <div id="regionBars" style="margin-top:8px"></div>
+  </div>
+</div>
+
+<!-- Site table -->
+<div class="card" style="margin-bottom:1rem">
+  <div class="card-title">各 Site 詳細人數</div>
+  <table class="site-table" id="siteTable">
+    <thead>
+      <tr>
+        <th>Site</th>
+        <th style="text-align:right">最新人數</th>
+        <th style="text-align:right">前期</th>
+        <th style="text-align:right">變動</th>
+        <th style="text-align:right">最高</th>
+        <th style="text-align:right">最低</th>
+        <th class="bar-cell">趨勢</th>
+      </tr>
+    </thead>
+    <tbody id="siteTableBody"></tbody>
+  </table>
+</div>
+
+<footer>
+  ※大陸廠區計算基準為扣除月底當天為最後工作日者，故與組織圖略有差異。
+  &nbsp;｜&nbsp; Dashboard 由 Claude 自動產生
+</footer>
+
+<script>
+// ─── 資料（直接從 Excel 讀取轉換） ─────────────────────────────────────────
+const RAW_DATES = [
+  '2023/06/30','2023/12/31','2024/01/31','2024/06/30','2024/12/31',
+  '2025/03/31','2025/06/30','2025/07/31','2025/08/31','2025/09/30',
+  '2025/10/31','2025/11/30','2025/12/31','2026/03/15','2026/04/30'
+];
+
+const SITES = [
+  { name:'日本(ZJS)',          color:'#4f9cf9', values:[18,19,19,25,26,26,26,28,26,29,21,27,26,38,38] },
+  { name:'日本(ZJM)-工廠',     color:'#93c5fd', values:[0,0,0,0,14,15,16,14,16,15,21,14,10,5,5] },
+  { name:'歐洲(ZNS)',          color:'#a78bfa', values:[18,21,15,22,23,22,21,21,21,22,24,24,24,27,27] },
+  { name:'美國(ZAS)',          color:'#fbbf24', values:[55,56,45,49,50,44,44,43,43,41,41,42,43,42,40] },
+  { name:'中國-ZCM(含工廠)',   color:'#f87171', values:[227,240,233,238,216,197,185,147,122,104,104,102,136,112,98] },
+  { name:'中國-ZCS',           color:'#fca5a5', values:[3,3,1,2,1,0,0,0,0,0,0,0,0,0,0] },
+  { name:'中國-ZCT',           color:'#fb923c', values:[10,10,14,10,9,9,9,9,9,8,8,7,6,6,6] },
+  { name:'越南(含工廠)',        color:'#34d399', values:[157,165,209,196,164,149,174,119,138,131,139,128,163,166,153] },
+  { name:'新加坡(ZSH)',        color:'#2dd4bf', values:[null,null,0,2,3,3,3,3,3,3,3,3,3,3,3] },
+  { name:'台灣(ZTMN含工廠)',   color:'#c084fc', values:[360,383,379,432,415,400,374,364,353,343,334,327,325,313,316] },
+];
+
+const TOTAL = [848,897,915,976,921,865,854,783,824,783,783,762,736,712,686];
+
+// ─── 狀態 ─────────────────────────────────────────────────────────────────
+let currentRange = 12;
+let chartType = 'line';
+let totalChart = null, multiChart = null, pieChart = null;
+
+// ─── 工具函式 ──────────────────────────────────────────────────────────────
+function parseDates(strs) {
+  return strs.map(s => {
+    const d = new Date(s.replace(/\//g,'-'));
+    return d;
+  });
+}
+
+function fmtDate(str) {
+  const d = new Date(str.replace(/\//g,'-'));
+  return d.toLocaleDateString('zh-TW',{year:'numeric',month:'2-digit',day:'2-digit'});
+}
+
+function fmtShort(str) {
+  const d = new Date(str.replace(/\//g,'-'));
+  return d.toLocaleDateString('zh-TW',{year:'2-digit',month:'2-digit'});
+}
+
+function getSlice() {
+  const n = RAW_DATES.length;
+  if (currentRange === 0) return { dates: RAW_DATES, total: TOTAL, sites: SITES.map(s=>({...s,vals:s.values})) };
+  const start = Math.max(0, n - currentRange);
+  return {
+    dates: RAW_DATES.slice(start),
+    total: TOTAL.slice(start),
+    sites: SITES.map(s=>({...s, vals: s.values.slice(start)}))
+  };
+}
+
+function deltaStr(curr, prev) {
+  if (curr == null || prev == null) return '—';
+  const d = curr - prev;
+  if (d === 0) return '<span style="color:var(--text-muted)">±0</span>';
+  const sign = d > 0 ? '▲' : '▼';
+  const col = d > 0 ? 'var(--green)' : 'var(--red)';
+  return `<span style="color:${col}">${sign}${Math.abs(d)}</span>`;
+}
+
+// ─── KPI ──────────────────────────────────────────────────────────────────
+function updateKPIs() {
+  const n = TOTAL.length;
+  const latest = TOTAL[n-1], prev = TOTAL[n-2];
+  document.getElementById('kpi-total').textContent = latest.toLocaleString();
+  const d = latest - prev;
+  const el = document.getElementById('kpi-total-delta');
+  el.innerHTML = `vs 前期 ${d>=0?'▲':'▼'}${Math.abs(d)}`;
+  el.className = 'kpi-delta ' + (d>=0?'up':'down');
+
+  // 台灣
+  const twIdx = SITES.findIndex(s=>s.name.includes('台灣'));
+  const twLatest = SITES[twIdx].values[n-1], twPrev = SITES[twIdx].values[n-2];
+  document.getElementById('kpi-tw').textContent = twLatest;
+  const twEl = document.getElementById('kpi-tw-delta');
+  const twD = twLatest - twPrev;
+  twEl.innerHTML = `vs 前期 ${twD>=0?'▲':'▼'}${Math.abs(twD)}`;
+  twEl.className = 'kpi-delta ' + (twD>=0?'up':'down');
+
+  // 中國
+  const cnIdx = SITES.findIndex(s=>s.name.includes('ZCM'));
+  const cnLatest = SITES[cnIdx].values[n-1], cnPrev = SITES[cnIdx].values[n-2];
+  document.getElementById('kpi-cn').textContent = cnLatest;
+  const cnEl = document.getElementById('kpi-cn-delta');
+  const cnD = cnLatest - cnPrev;
+  cnEl.innerHTML = `vs 前期 ${cnD>=0?'▲':'▼'}${Math.abs(cnD)}`;
+  cnEl.className = 'kpi-delta ' + (cnD>=0?'up':'down');
+
+  // 越南
+  const vnIdx = SITES.findIndex(s=>s.name.includes('越南'));
+  const vnLatest = SITES[vnIdx].values[n-1], vnPrev = SITES[vnIdx].values[n-2];
+  document.getElementById('kpi-vn').textContent = vnLatest;
+  const vnEl = document.getElementById('kpi-vn-delta');
+  const vnD = vnLatest - vnPrev;
+  vnEl.innerHTML = `vs 前期 ${vnD>=0?'▲':'▼'}${Math.abs(vnD)}`;
+  vnEl.className = 'kpi-delta ' + (vnD>=0?'up':'down');
+
+  // 期間
+  document.getElementById('kpi-span').textContent = n + ' 個時間點';
+  document.getElementById('kpi-points').textContent = RAW_DATES[0].slice(0,7) + ' ～ ' + RAW_DATES[n-1].slice(0,7);
+  document.getElementById('latest-date-badge').textContent = '最新資料：' + fmtDate(RAW_DATES[n-1]);
+}
+
+// ─── 全球總人數趨勢 ───────────────────────────────────────────────────────
+function buildTotalChart() {
+  const { dates, total } = getSlice();
+  const labels = dates.map(fmtShort);
+  const ctx = document.getElementById('totalChart').getContext('2d');
+
+  const grad = ctx.createLinearGradient(0,0,0,260);
+  grad.addColorStop(0,'rgba(79,156,249,0.25)');
+  grad.addColorStop(1,'rgba(79,156,249,0)');
+
+  if (totalChart) totalChart.destroy();
+  totalChart = new Chart(ctx, {
+    type: chartType,
+    data: {
+      labels,
+      datasets: [{
+        label: '全球總人數',
+        data: total,
+        borderColor: '#4f9cf9',
+        backgroundColor: chartType === 'line' ? grad : 'rgba(79,156,249,0.6)',
+        borderWidth: 2.5,
+        pointRadius: chartType === 'line' ? 4 : 0,
+        pointBackgroundColor: '#4f9cf9',
+        pointHoverRadius: 6,
+        tension: 0.35,
+        fill: chartType === 'line',
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: {
+        backgroundColor: '#1a1d27',
+        borderColor: 'rgba(255,255,255,0.1)',
+        borderWidth: 1,
+        titleColor: '#e8eaf0',
+        bodyColor: '#4f9cf9',
+        callbacks: { label: ctx => ` ${ctx.parsed.y.toLocaleString()} 人` }
+      }},
+      scales: {
+        x: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#7a7f99', font:{size:10}, maxRotation:45 } },
+        y: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#7a7f99', font:{size:10} }, min: 500 }
+      }
+    }
+  });
+}
+
+// ─── 多站趨勢折線 ─────────────────────────────────────────────────────────
+function buildMultiChart() {
+  const { dates, sites } = getSlice();
+  const labels = dates.map(fmtShort);
+  const ctx = document.getElementById('multiChart').getContext('2d');
+
+  const datasets = sites.map(s => ({
+    label: s.name,
+    data: s.vals,
+    borderColor: s.color,
+    backgroundColor: s.color + '22',
+    borderWidth: 1.8,
+    pointRadius: 2,
+    pointHoverRadius: 5,
+    tension: 0.35,
+    spanGaps: true,
+  }));
+
+  if (multiChart) multiChart.destroy();
+  multiChart = new Chart(ctx, {
+    type: 'line',
+    data: { labels, datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#1a1d27',
+          borderColor: 'rgba(255,255,255,0.1)',
+          borderWidth: 1,
+          titleColor: '#e8eaf0',
+          bodyColor: '#e8eaf0',
+        }
+      },
+      scales: {
+        x: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#7a7f99', font:{size:9}, maxRotation:45 } },
+        y: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#7a7f99', font:{size:9} } }
+      }
+    }
+  });
+
+  // Legend
+  const lg = document.getElementById('multiLegend');
+  lg.innerHTML = '';
+  sites.forEach(s => {
+    const item = document.createElement('div');
+    item.className = 'legend-item';
+    item.innerHTML = `<div class="legend-dot" style="background:${s.color}"></div><span>${s.name}</span>`;
+    lg.appendChild(item);
+  });
+}
+
+// ─── 圓餅圖 ───────────────────────────────────────────────────────────────
+function buildPieChart() {
+  const n = RAW_DATES.length;
+  const latestVals = SITES.map(s => s.values[n-1] || 0);
+  const ctx = document.getElementById('pieChart').getContext('2d');
+
+  if (pieChart) pieChart.destroy();
+  pieChart = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: SITES.map(s=>s.name),
+      datasets:[{
+        data: latestVals,
+        backgroundColor: SITES.map(s=>s.color+'cc'),
+        borderColor: SITES.map(s=>s.color),
+        borderWidth: 1,
+        hoverOffset: 6,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      cutout: '62%',
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#1a1d27',
+          borderColor: 'rgba(255,255,255,0.1)',
+          borderWidth: 1,
+          titleColor: '#e8eaf0',
+          bodyColor: '#e8eaf0',
+          callbacks: {
+            label: ctx => {
+              const total = ctx.dataset.data.reduce((a,b)=>a+b,0);
+              const pct = ((ctx.parsed / total)*100).toFixed(1);
+              return ` ${ctx.parsed} 人 (${pct}%)`;
+            }
+          }
+        }
+      }
+    }
+  });
+}
+
+// ─── 地區快照長條 ─────────────────────────────────────────────────────────
+function buildRegionBars() {
+  const n = RAW_DATES.length;
+  const container = document.getElementById('regionBars');
+  container.innerHTML = '';
+  const max = Math.max(...SITES.map(s=>s.values[n-1]||0));
+  SITES.forEach(s => {
+    const v = s.values[n-1] || 0;
+    const pct = max > 0 ? (v/max*100).toFixed(1) : 0;
+    const row = document.createElement('div');
+    row.className = 'region-bar-row';
+    row.innerHTML = `
+      <div class="region-bar-label">${s.name.length > 10 ? s.name.slice(0,10)+'…' : s.name}</div>
+      <div class="region-bar-track"><div class="region-bar-fill" style="width:${pct}%;background:${s.color}"></div></div>
+      <div class="region-bar-num">${v}</div>
+    `;
+    container.appendChild(row);
+  });
+}
+
+// ─── Site 表格 ────────────────────────────────────────────────────────────
+function buildTable() {
+  const n = RAW_DATES.length;
+  const tbody = document.getElementById('siteTableBody');
+  tbody.innerHTML = '';
+  SITES.forEach(s => {
+    const vals = s.values.filter(v=>v!=null && v!==0);
+    const latest = s.values[n-1] ?? 0;
+    const prev = s.values[n-2] ?? 0;
+    const mx = Math.max(...s.values.filter(v=>v!=null));
+    const mn = Math.min(...s.values.filter(v=>v!=null && v>0));
+    const d = latest - prev;
+    const dStr = d === 0
+      ? `<span style="color:var(--text-muted)">—</span>`
+      : `<span style="color:${d>0?'var(--green)':'var(--red)'}">${d>0?'▲':'▼'}${Math.abs(d)}</span>`;
+
+    const pct = mx > 0 ? (latest/mx*100).toFixed(0) : 0;
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><span class="site-name">${s.name}</span></td>
+      <td class="site-num" style="color:${s.color}">${latest}</td>
+      <td class="site-num" style="color:var(--text-muted)">${prev}</td>
+      <td class="site-num">${dStr}</td>
+      <td class="site-num" style="color:var(--text-muted)">${mx}</td>
+      <td class="site-num" style="color:var(--text-muted)">${mn}</td>
+      <td class="bar-cell"><div class="mini-bar" style="width:${pct}%;background:${s.color}"></div></td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  // 總計行
+  const n2 = TOTAL.length;
+  const tl = TOTAL[n2-1], tp = TOTAL[n2-2];
+  const td = tl - tp;
+  const tdStr = `<span style="color:${td>=0?'var(--green)':'var(--red)'}">${td>=0?'▲':'▼'}${Math.abs(td)}</span>`;
+  const tmx = Math.max(...TOTAL), tmn = Math.min(...TOTAL);
+  const tpct = (tl/tmx*100).toFixed(0);
+  const tr = document.createElement('tr');
+  tr.style.borderTop = '1px solid rgba(255,255,255,0.15)';
+  tr.innerHTML = `
+    <td><span class="site-name" style="color:var(--accent);font-weight:700">全球總人數</span></td>
+    <td class="site-num" style="color:var(--accent);font-weight:700">${tl.toLocaleString()}</td>
+    <td class="site-num" style="color:var(--text-muted)">${tp.toLocaleString()}</td>
+    <td class="site-num">${tdStr}</td>
+    <td class="site-num" style="color:var(--text-muted)">${tmx.toLocaleString()}</td>
+    <td class="site-num" style="color:var(--text-muted)">${tmn.toLocaleString()}</td>
+    <td class="bar-cell"><div class="mini-bar" style="width:${tpct}%;background:var(--accent)"></div></td>
+  `;
+  tbody.appendChild(tr);
+}
+
+// ─── 控制 ─────────────────────────────────────────────────────────────────
+function setRange(r) {
+  currentRange = r;
+  document.querySelectorAll('.btn-group .btn').forEach((b,i)=>{
+    if(b.onclick && b.onclick.toString().includes('setRange')) b.classList.remove('active');
+  });
+  event.target.classList.add('active');
+  buildTotalChart();
+  buildMultiChart();
+}
+
+function setChartType(t) {
+  chartType = t;
+  document.getElementById('btn-line').classList.toggle('active', t==='line');
+  document.getElementById('btn-bar').classList.toggle('active', t==='bar');
+  buildTotalChart();
+}
+
+// ─── 初始化 ───────────────────────────────────────────────────────────────
+updateKPIs();
+buildTotalChart();
+buildMultiChart();
+buildPieChart();
+buildRegionBars();
+buildTable();
+</script>
+</body>
+</html>
