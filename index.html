@@ -46,7 +46,7 @@
   .site-table tr:last-child td{border-bottom:none}
   .site-table tr:hover td{background:rgba(255,255,255,.02)}
   .site-num{font-family:'DM Mono',monospace;font-size:.9rem;text-align:right}
-  .mini-bar{height:4px;border-radius:2px;background:var(--accent)}
+  .mini-spark{display:block;width:80px;height:28px}
   .legend{display:flex;flex-wrap:wrap;gap:.5rem 1rem;margin-top:.75rem}
   .legend-item{display:flex;align-items:center;gap:6px;font-size:.73rem;color:var(--text-muted)}
   .legend-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
@@ -193,21 +193,38 @@ function buildRegionBars(){
     container.appendChild(row);});
 }
 
+function makeSpark(vals, color){
+  const W=80,H=28,pad=2;
+  const clean=vals.slice().reverse();
+  const mx=Math.max(...clean),mn=Math.min(...clean);
+  const range=mx-mn||1;
+  const n=clean.length;
+  const pts=clean.map((v,i)=>{
+    const x=pad+(i/(n-1))*(W-pad*2);
+    const y=H-pad-(v-mn)/range*(H-pad*2);
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  }).join(' ');
+  const lastX=pad+((n-1)/(n-1))*(W-pad*2);
+  const lastY=H-pad-(clean[n-1]-mn)/range*(H-pad*2);
+  return `<svg class="mini-spark" viewBox="0 0 ${W} ${H}"><polyline points="${pts}" fill="none" stroke="${color}" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/><circle cx="${lastX.toFixed(1)}" cy="${lastY.toFixed(1)}" r="2" fill="${color}"/></svg>`;
+}
+
 function buildTable(){
   const tbody=document.getElementById('siteTableBody');tbody.innerHTML='';
   SITES.forEach(s=>{
     const latest=s.values[0]??0,prev=s.values[1]??0;
     const mx=Math.max(...s.values),mn=Math.min(...s.values.filter(v=>v>0));
     const d=latest-prev,dStr=d===0?`<span style="color:var(--text-muted)">—</span>`:`<span style="color:${d>0?'var(--green)':'var(--red)'}">${d>0?'▲':'▼'}${Math.abs(d)}</span>`;
-    const pct=mx>0?(latest/mx*100).toFixed(0):0;
+    const spark=makeSpark(s.values,s.color);
     const tr=document.createElement('tr');
-    tr.innerHTML=`<td style="font-weight:500;color:${s.color}">${s.name}</td><td class="site-num" style="color:${s.color}">${latest}</td><td class="site-num" style="color:var(--text-muted)">${prev}</td><td class="site-num">${dStr}</td><td class="site-num" style="color:var(--text-muted)">${mx}</td><td class="site-num" style="color:var(--text-muted)">${mn}</td><td><div class="mini-bar" style="width:${pct}%;background:${s.color}"></div></td>`;
+    tr.innerHTML=`<td style="font-weight:500;color:${s.color}">${s.name}</td><td class="site-num" style="color:${s.color}">${latest}</td><td class="site-num" style="color:var(--text-muted)">${prev}</td><td class="site-num">${dStr}</td><td class="site-num" style="color:var(--text-muted)">${mx}</td><td class="site-num" style="color:var(--text-muted)">${mn}</td><td>${spark}</td>`;
     tbody.appendChild(tr);});
   const tl=TOTAL[0],tp=TOTAL[1],td2=tl-tp;
   const tdStr=`<span style="color:${td2>=0?'var(--green)':'var(--red)'}">${td2>=0?'▲':'▼'}${Math.abs(td2)}</span>`;
-  const tmx=Math.max(...TOTAL),tmn=Math.min(...TOTAL),tpct=(tl/tmx*100).toFixed(0);
+  const tmx=Math.max(...TOTAL),tmn=Math.min(...TOTAL);
   const tr=document.createElement('tr');tr.style.borderTop='1px solid rgba(255,255,255,0.15)';
-  tr.innerHTML=`<td style="font-weight:700;color:var(--accent)">全球總人數</td><td class="site-num" style="color:var(--accent);font-weight:700">${tl.toLocaleString()}</td><td class="site-num" style="color:var(--text-muted)">${tp.toLocaleString()}</td><td class="site-num">${tdStr}</td><td class="site-num" style="color:var(--text-muted)">${tmx.toLocaleString()}</td><td class="site-num" style="color:var(--text-muted)">${tmn.toLocaleString()}</td><td><div class="mini-bar" style="width:${tpct}%;background:var(--accent)"></div></td>`;
+  const spark=makeSpark(TOTAL,'#4f9cf9');
+  tr.innerHTML=`<td style="font-weight:700;color:var(--accent)">全球總人數</td><td class="site-num" style="color:var(--accent);font-weight:700">${tl.toLocaleString()}</td><td class="site-num" style="color:var(--text-muted)">${tp.toLocaleString()}</td><td class="site-num">${tdStr}</td><td class="site-num" style="color:var(--text-muted)">${tmx.toLocaleString()}</td><td class="site-num" style="color:var(--text-muted)">${tmn.toLocaleString()}</td><td>${spark}</td>`;
   tbody.appendChild(tr);
 }
 
