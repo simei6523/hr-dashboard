@@ -7,17 +7,16 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&family=DM+Mono:wght@400;500&display=swap');
-  :root {
-    --bg:#0f1117;--surface:#1a1d27;--surface2:#22263a;--border:rgba(255,255,255,0.07);
-    --text:#e8eaf0;--text-muted:#7a7f99;--accent:#4f9cf9;--accent2:#a78bfa;
-    --green:#34d399;--red:#f87171;--amber:#fbbf24;--teal:#2dd4bf;
-  }
+  :root{--bg:#0f1117;--surface:#1a1d27;--surface2:#22263a;--border:rgba(255,255,255,0.07);--text:#e8eaf0;--text-muted:#7a7f99;--accent:#4f9cf9;--accent2:#a78bfa;--green:#34d399;--red:#f87171;--amber:#fbbf24;--teal:#2dd4bf;}
   *{box-sizing:border-box;margin:0;padding:0}
   body{font-family:'Noto Sans TC',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding:2rem}
   .header{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:2.5rem;flex-wrap:wrap;gap:1rem}
   .header-left h1{font-size:1.75rem;font-weight:700;letter-spacing:-0.02em}
   .header-left p{font-size:0.8rem;color:var(--text-muted);margin-top:4px}
   .tag{display:inline-block;font-size:0.7rem;font-family:'DM Mono',monospace;background:rgba(79,156,249,0.12);color:var(--accent);border:1px solid rgba(79,156,249,0.2);border-radius:4px;padding:2px 8px;margin-right:6px;margin-top:6px}
+  .tag-btn{cursor:pointer;transition:all .15s}
+  .tag-btn:hover{background:rgba(79,156,249,0.3)}
+  .tag-btn.active{background:var(--accent);color:#fff;border-color:var(--accent)}
   .filter-bar{display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;margin-bottom:1.75rem}
   .filter-bar label{font-size:.8rem;color:var(--text-muted);white-space:nowrap}
   .btn-group{display:flex;gap:4px}
@@ -55,8 +54,17 @@
   .region-bar-track{flex:1;height:8px;background:var(--surface2);border-radius:4px;overflow:hidden}
   .region-bar-fill{height:100%;border-radius:4px;transition:width .5s ease}
   .region-bar-num{font-size:.8rem;font-family:'DM Mono',monospace;color:var(--text-muted);min-width:36px;text-align:right}
+  /* 地區詳細卡片 */
+  #regionDetail{display:none;margin-bottom:1rem;animation:fadeIn .3s ease}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
+  .region-detail-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem}
+  .region-detail-title{font-size:1rem;font-weight:600}
+  .region-kpi-row{display:grid;grid-template-columns:repeat(3,1fr);gap:.75rem;margin-bottom:1rem}
+  .region-kpi{background:var(--surface2);border-radius:8px;padding:.875rem 1rem}
+  .region-kpi-label{font-size:.68rem;color:var(--text-muted);margin-bottom:.35rem;text-transform:uppercase;letter-spacing:.05em}
+  .region-kpi-value{font-size:1.4rem;font-weight:700;font-family:'DM Mono',monospace}
   footer{margin-top:2rem;font-size:.72rem;color:var(--text-muted);border-top:1px solid var(--border);padding-top:1rem}
-  @media(max-width:768px){body{padding:1rem}.charts-grid{grid-template-columns:1fr}.charts-row{grid-template-columns:1fr}}
+  @media(max-width:768px){body{padding:1rem}.charts-grid{grid-template-columns:1fr}.charts-row{grid-template-columns:1fr}.region-kpi-row{grid-template-columns:repeat(2,1fr)}}
 </style>
 </head>
 <body>
@@ -64,9 +72,15 @@
   <div class="header-left">
     <h1>🌏 全球各 Site 人員人數</h1>
     <p>Global Headcount Dashboard</p>
-    <div style="margin-top:6px">
-      <span class="tag">台灣</span><span class="tag">日本</span><span class="tag">歐洲</span>
-      <span class="tag">美國</span><span class="tag">中國</span><span class="tag">越南</span><span class="tag">新加坡</span>
+    <div style="margin-top:6px" id="regionTags">
+      <span class="tag tag-btn" onclick="showRegion('台灣',this)">台灣</span>
+      <span class="tag tag-btn" onclick="showRegion('日本',this)">日本</span>
+      <span class="tag tag-btn" onclick="showRegion('歐洲',this)">歐洲</span>
+      <span class="tag tag-btn" onclick="showRegion('美國',this)">美國</span>
+      <span class="tag tag-btn" onclick="showRegion('中國',this)">中國</span>
+      <span class="tag tag-btn" onclick="showRegion('越南',this)">越南</span>
+      <span class="tag tag-btn" onclick="showRegion('新加坡',this)">新加坡</span>
+      <span class="tag tag-btn" id="closeTag" onclick="closeRegion()" style="display:none;background:rgba(248,113,113,0.15);color:#f87171;border-color:rgba(248,113,113,0.3)">✕ 關閉</span>
     </div>
   </div>
   <div><div class="date-badge" id="latest-date-badge">最新資料：載入中</div></div>
@@ -94,6 +108,17 @@
   <div class="kpi green"><div class="kpi-label">資料期間</div><div class="kpi-value" style="font-size:1.1rem;padding-top:6px" id="kpi-span">—</div><div class="kpi-sub" id="kpi-points">—</div></div>
 </div>
 
+<!-- 地區詳細面板（點標籤後展開） -->
+<div id="regionDetail" class="card">
+  <div class="region-detail-header">
+    <div class="region-detail-title" id="regionDetailTitle">地區詳情</div>
+    <button class="btn" onclick="closeRegion()" style="font-size:.75rem;padding:3px 10px">✕ 關閉</button>
+  </div>
+  <div class="region-kpi-row" id="regionKpiRow"></div>
+  <div style="height:200px"><canvas id="regionChart"></canvas></div>
+  <div class="legend" id="regionLegend" style="margin-top:.75rem"></div>
+</div>
+
 <div class="charts-grid">
   <div class="card"><div class="card-title">全球總人數趨勢</div><div style="height:260px"><canvas id="totalChart"></canvas></div></div>
   <div class="card"><div class="card-title">各地區佔比（最新）</div><div style="height:260px"><canvas id="pieChart"></canvas></div></div>
@@ -109,47 +134,56 @@
 <footer>※大陸廠區計算基準為扣除月底當天為最後工作日者，故與組織圖略有差異。&nbsp;｜&nbsp; 最新更新：2026/05/22&nbsp;｜&nbsp; Dashboard 由 Claude 自動產生</footer>
 
 <script>
-const RAW_DATES = ['2026/05/22','2026/04/30','2026/03/15','2026/02/06','2026/01/31','2025/12/31','2025/11/30','2025/10/31','2025/09/30','2025/08/31','2025/07/31','2025/06/30','2025/05/31','2025/04/30','2025/03/31','2025/02/28','2024/12/31','2024/06/30','2023/12/31','2023/06/30'];
+const RAW_DATES=['2026/05/22','2026/04/30','2026/03/15','2026/02/06','2026/01/31','2025/12/31','2025/11/30','2025/10/31','2025/09/30','2025/08/31','2025/07/31','2025/06/30','2025/05/31','2025/04/30','2025/03/31','2025/02/28','2024/12/31','2024/06/30','2023/12/31','2023/06/30'];
 
-const SITES = [
-  {name:'日本(ZJM)-含工廠',   color:'#4f9cf9', values:[41,43,43,40,39,36,41,42,44,42,42,42,43,43,41,41,41,40,25,19]},
-  {name:'歐洲(ZNS)',           color:'#a78bfa', values:[29,27,27,24,24,24,24,24,22,21,21,23,22,21,22,22,23,23,22,21]},
-  {name:'美國(ZAS)',           color:'#fbbf24', values:[40,40,42,41,41,43,42,41,41,43,43,44,44,44,44,44,46,50,49,56]},
-  {name:'中國-ZCM(含工廠)',    color:'#f87171', values:[102,98,110,113,114,136,146,148,148,174,261,185,189,187,197,199,199,216,238,240]},
-  {name:'中國-ZCS',            color:'#fca5a5', values:[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,2,3]},
-  {name:'中國-ZCT',            color:'#fb923c', values:[7,6,6,6,6,6,7,8,8,9,9,9,9,9,9,9,9,9,10,10]},
-  {name:'越南(含工廠)',         color:'#34d399', values:[169,153,150,148,173,163,172,183,174,179,158,174,183,184,149,147,147,164,196,165]},
-  {name:'新加坡(ZSH)',         color:'#2dd4bf', values:[3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,2,0]},
-  {name:'台灣(ZTMN含工廠)',    color:'#c084fc', values:[309,316,316,329,327,325,327,334,343,353,364,374,381,380,400,416,416,415,432,383]},
+const SITES=[
+  {name:'日本(ZJM)-含工廠', region:'日本', color:'#4f9cf9', values:[41,43,43,40,39,36,41,42,44,42,42,42,43,43,41,41,41,40,25,19]},
+  {name:'歐洲(ZNS)',         region:'歐洲', color:'#a78bfa', values:[29,27,27,24,24,24,24,24,22,21,21,23,22,21,22,22,23,23,22,21]},
+  {name:'美國(ZAS)',         region:'美國', color:'#fbbf24', values:[40,40,42,41,41,43,42,41,41,43,43,44,44,44,44,44,46,50,49,56]},
+  {name:'中國-ZCM(含工廠)', region:'中國', color:'#f87171', values:[102,98,110,113,114,136,146,148,148,174,261,185,189,187,197,199,199,216,238,240]},
+  {name:'中國-ZCS',          region:'中國', color:'#fca5a5', values:[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,2,3]},
+  {name:'中國-ZCT',          region:'中國', color:'#fb923c', values:[7,6,6,6,6,6,7,8,8,9,9,9,9,9,9,9,9,9,10,10]},
+  {name:'越南(含工廠)',       region:'越南', color:'#34d399', values:[169,153,150,148,173,163,172,183,174,179,158,174,183,184,149,147,147,164,196,165]},
+  {name:'新加坡(ZSH)',       region:'新加坡',color:'#2dd4bf', values:[3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,2,0]},
+  {name:'台灣(ZTMN含工廠)', region:'台灣', color:'#c084fc', values:[309,316,316,329,327,325,327,334,343,353,364,374,381,380,400,416,416,415,432,383]},
 ];
-const TOTAL = [700,686,692,704,727,736,762,783,783,824,901,854,874,871,865,884,884,921,976,897];
+const TOTAL=[700,686,692,704,727,736,762,783,783,824,901,854,874,871,865,884,884,921,976,897];
 
-let currentRange=12, chartType='line';
-let totalChart=null, multiChart=null, pieChart=null;
+let currentRange=12,chartType='line';
+let totalChart=null,multiChart=null,pieChart=null,regionChart=null;
 
 function fmtShort(s){const d=new Date(s.replace(/\//g,'-'));return d.toLocaleDateString('zh-TW',{year:'2-digit',month:'2-digit'})}
 function fmtDate(s){const d=new Date(s.replace(/\//g,'-'));return d.toLocaleDateString('zh-TW',{year:'numeric',month:'2-digit',day:'2-digit'})}
 
+// ── 修正：從最新日期往前推 ──
 function getSlice(){
   const n=RAW_DATES.length;
-  const start=currentRange===0?0:Math.max(0,n-currentRange);
-  return{dates:RAW_DATES.slice(start),total:TOTAL.slice(start),sites:SITES.map(s=>({...s,vals:s.values.slice(start)}))};
+  if(currentRange===0) return{dates:RAW_DATES,total:TOTAL,sites:SITES.map(s=>({...s,vals:s.values}))};
+  // 日期已從新到舊排列，取前 currentRange 個即是最近的
+  const end=Math.min(currentRange,n);
+  return{
+    dates:RAW_DATES.slice(0,end),
+    total:TOTAL.slice(0,end),
+    sites:SITES.map(s=>({...s,vals:s.values.slice(0,end)}))
+  };
 }
 
 function updateKPIs(){
   const n=TOTAL.length;
-  const setKPI=(id,deltaId,latest,prev,color)=>{
+  const setKPI=(id,deltaId,latest,prev)=>{
     document.getElementById(id).textContent=latest.toLocaleString();
     const d=latest-prev,el=document.getElementById(deltaId);
     el.innerHTML=`vs 前期 ${d>=0?'▲':'▼'}${Math.abs(d)}`;
     el.className='kpi-delta '+(d>=0?'up':'down');
   };
   setKPI('kpi-total','kpi-total-delta',TOTAL[0],TOTAL[1]);
-  const tw=SITES.find(s=>s.name.includes('台灣'));
+  const tw=SITES.find(s=>s.region==='台灣');
   setKPI('kpi-tw','kpi-tw-delta',tw.values[0],tw.values[1]);
-  const cn=SITES.find(s=>s.name.includes('ZCM'));
-  setKPI('kpi-cn','kpi-cn-delta',cn.values[0],cn.values[1]);
-  const vn=SITES.find(s=>s.name.includes('越南'));
+  const cnSites=SITES.filter(s=>s.region==='中國');
+  const cnLatest=cnSites.reduce((a,s)=>a+s.values[0],0);
+  const cnPrev=cnSites.reduce((a,s)=>a+s.values[1],0);
+  setKPI('kpi-cn','kpi-cn-delta',cnLatest,cnPrev);
+  const vn=SITES.find(s=>s.region==='越南');
   setKPI('kpi-vn','kpi-vn-delta',vn.values[0],vn.values[1]);
   document.getElementById('kpi-span').textContent=n+' 個時間點';
   document.getElementById('kpi-points').textContent=RAW_DATES[n-1].slice(0,7)+' ～ '+RAW_DATES[0].slice(0,7);
@@ -158,19 +192,21 @@ function updateKPIs(){
 
 function buildTotalChart(){
   const{dates,total}=getSlice();
-  const labels=dates.map(fmtShort);
+  // 圖表顯示時間順序由舊到新
+  const labels=[...dates].reverse().map(fmtShort);
+  const data=[...total].reverse();
   const ctx=document.getElementById('totalChart').getContext('2d');
   const grad=ctx.createLinearGradient(0,0,0,260);
   grad.addColorStop(0,'rgba(79,156,249,0.25)');grad.addColorStop(1,'rgba(79,156,249,0)');
   if(totalChart)totalChart.destroy();
-  totalChart=new Chart(ctx,{type:chartType,data:{labels,datasets:[{label:'全球總人數',data:total,borderColor:'#4f9cf9',backgroundColor:chartType==='line'?grad:'rgba(79,156,249,0.6)',borderWidth:2.5,pointRadius:chartType==='line'?4:0,tension:0.35,fill:chartType==='line'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{backgroundColor:'#1a1d27',borderColor:'rgba(255,255,255,0.1)',borderWidth:1,titleColor:'#e8eaf0',bodyColor:'#4f9cf9',callbacks:{label:c=>` ${c.parsed.y.toLocaleString()} 人`}}},scales:{x:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#7a7f99',font:{size:10},maxRotation:45}},y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#7a7f99',font:{size:10}},min:500}}}});
+  totalChart=new Chart(ctx,{type:chartType,data:{labels,datasets:[{label:'全球總人數',data,borderColor:'#4f9cf9',backgroundColor:chartType==='line'?grad:'rgba(79,156,249,0.6)',borderWidth:2.5,pointRadius:chartType==='line'?4:0,tension:0.35,fill:chartType==='line'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{backgroundColor:'#1a1d27',borderColor:'rgba(255,255,255,0.1)',borderWidth:1,titleColor:'#e8eaf0',bodyColor:'#4f9cf9',callbacks:{label:c=>` ${c.parsed.y.toLocaleString()} 人`}}},scales:{x:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#7a7f99',font:{size:10},maxRotation:45}},y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#7a7f99',font:{size:10}}}}}});
 }
 
 function buildMultiChart(){
   const{dates,sites}=getSlice();
-  const labels=dates.map(fmtShort);
+  const labels=[...dates].reverse().map(fmtShort);
   const ctx=document.getElementById('multiChart').getContext('2d');
-  const datasets=sites.map(s=>({label:s.name,data:s.vals,borderColor:s.color,backgroundColor:s.color+'22',borderWidth:1.8,pointRadius:2,tension:0.35,spanGaps:true}));
+  const datasets=sites.map(s=>({label:s.name,data:[...s.vals].reverse(),borderColor:s.color,backgroundColor:s.color+'22',borderWidth:1.8,pointRadius:2,tension:0.35,spanGaps:true}));
   if(multiChart)multiChart.destroy();
   multiChart=new Chart(ctx,{type:'line',data:{labels,datasets},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{backgroundColor:'#1a1d27',borderColor:'rgba(255,255,255,0.1)',borderWidth:1}},scales:{x:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#7a7f99',font:{size:9},maxRotation:45}},y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#7a7f99',font:{size:9}}}}}});
   const lg=document.getElementById('multiLegend');lg.innerHTML='';
@@ -193,20 +229,13 @@ function buildRegionBars(){
     container.appendChild(row);});
 }
 
-function makeSpark(vals, color){
+function makeSpark(vals,color){
   const W=80,H=28,pad=2;
-  const clean=vals.slice().reverse();
-  const mx=Math.max(...clean),mn=Math.min(...clean);
-  const range=mx-mn||1;
-  const n=clean.length;
-  const pts=clean.map((v,i)=>{
-    const x=pad+(i/(n-1))*(W-pad*2);
-    const y=H-pad-(v-mn)/range*(H-pad*2);
-    return `${x.toFixed(1)},${y.toFixed(1)}`;
-  }).join(' ');
-  const lastX=pad+((n-1)/(n-1))*(W-pad*2);
-  const lastY=H-pad-(clean[n-1]-mn)/range*(H-pad*2);
-  return `<svg class="mini-spark" viewBox="0 0 ${W} ${H}"><polyline points="${pts}" fill="none" stroke="${color}" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/><circle cx="${lastX.toFixed(1)}" cy="${lastY.toFixed(1)}" r="2" fill="${color}"/></svg>`;
+  const clean=[...vals].reverse();
+  const mx=Math.max(...clean),mn=Math.min(...clean),range=mx-mn||1,n=clean.length;
+  const pts=clean.map((v,i)=>{const x=pad+(i/(n-1))*(W-pad*2),y=H-pad-(v-mn)/range*(H-pad*2);return`${x.toFixed(1)},${y.toFixed(1)}`;}).join(' ');
+  const lx=(pad+((n-1)/(n-1))*(W-pad*2)).toFixed(1),ly=(H-pad-(clean[n-1]-mn)/range*(H-pad*2)).toFixed(1);
+  return`<svg class="mini-spark" viewBox="0 0 ${W} ${H}"><polyline points="${pts}" fill="none" stroke="${color}" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/><circle cx="${lx}" cy="${ly}" r="2" fill="${color}"/></svg>`;
 }
 
 function buildTable(){
@@ -222,10 +251,57 @@ function buildTable(){
   const tl=TOTAL[0],tp=TOTAL[1],td2=tl-tp;
   const tdStr=`<span style="color:${td2>=0?'var(--green)':'var(--red)'}">${td2>=0?'▲':'▼'}${Math.abs(td2)}</span>`;
   const tmx=Math.max(...TOTAL),tmn=Math.min(...TOTAL);
-  const tr=document.createElement('tr');tr.style.borderTop='1px solid rgba(255,255,255,0.15)';
   const spark=makeSpark(TOTAL,'#4f9cf9');
+  const tr=document.createElement('tr');tr.style.borderTop='1px solid rgba(255,255,255,0.15)';
   tr.innerHTML=`<td style="font-weight:700;color:var(--accent)">全球總人數</td><td class="site-num" style="color:var(--accent);font-weight:700">${tl.toLocaleString()}</td><td class="site-num" style="color:var(--text-muted)">${tp.toLocaleString()}</td><td class="site-num">${tdStr}</td><td class="site-num" style="color:var(--text-muted)">${tmx.toLocaleString()}</td><td class="site-num" style="color:var(--text-muted)">${tmn.toLocaleString()}</td><td>${spark}</td>`;
   tbody.appendChild(tr);
+}
+
+// ── 地區詳細面板 ──
+let activeTag=null;
+function showRegion(regionName,tagEl){
+  // 標籤高亮
+  document.querySelectorAll('.tag-btn').forEach(t=>t.classList.remove('active'));
+  if(tagEl)tagEl.classList.add('active');
+  document.getElementById('closeTag').style.display='inline-block';
+  activeTag=tagEl;
+
+  const matched=SITES.filter(s=>s.region===regionName);
+  const panel=document.getElementById('regionDetail');
+  panel.style.display='block';
+  document.getElementById('regionDetailTitle').textContent='📍 '+regionName+' 地區詳情';
+
+  // KPI 區塊
+  const kpiRow=document.getElementById('regionKpiRow');
+  kpiRow.innerHTML='';
+  // 各 Site 最新人數
+  matched.forEach(s=>{
+    const d=s.values[0]-s.values[1];
+    const dStr=d===0?'±0':(d>0?'▲':'▼')+Math.abs(d);
+    const dColor=d>0?'var(--green)':d<0?'var(--red)':'var(--text-muted)';
+    kpiRow.innerHTML+=`<div class="region-kpi"><div class="region-kpi-label">${s.name}</div><div class="region-kpi-value" style="color:${s.color}">${s.values[0]}</div><div style="font-size:.75rem;font-family:'DM Mono',monospace;color:${dColor};margin-top:4px">vs 前期 ${dStr}</div></div>`;
+  });
+
+  // 折線圖
+  const labels=[...RAW_DATES].reverse().map(fmtShort);
+  const datasets=matched.map(s=>({label:s.name,data:[...s.values].reverse(),borderColor:s.color,backgroundColor:s.color+'22',borderWidth:2,pointRadius:3,tension:0.35,spanGaps:true}));
+  const ctx=document.getElementById('regionChart').getContext('2d');
+  if(regionChart)regionChart.destroy();
+  regionChart=new Chart(ctx,{type:'line',data:{labels,datasets},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{backgroundColor:'#1a1d27',borderColor:'rgba(255,255,255,0.1)',borderWidth:1,titleColor:'#e8eaf0',bodyColor:'#e8eaf0'}},scales:{x:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#7a7f99',font:{size:10},maxRotation:45}},y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#7a7f99',font:{size:10}}}}}});
+
+  // 圖例
+  const lg=document.getElementById('regionLegend');lg.innerHTML='';
+  matched.forEach(s=>{const item=document.createElement('div');item.className='legend-item';item.innerHTML=`<div class="legend-dot" style="background:${s.color}"></div><span>${s.name}</span>`;lg.appendChild(item);});
+
+  // 捲動到面板
+  panel.scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+function closeRegion(){
+  document.getElementById('regionDetail').style.display='none';
+  document.querySelectorAll('.tag-btn').forEach(t=>t.classList.remove('active'));
+  document.getElementById('closeTag').style.display='none';
+  if(regionChart){regionChart.destroy();regionChart=null;}
 }
 
 function setRange(r,btn){
